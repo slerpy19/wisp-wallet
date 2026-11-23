@@ -105,7 +105,7 @@ export function TokenScreen({ token }: { token: TokenMeta }) {
       </div>
 
       {/* ——— actions ——— */}
-      <div className="token-actions">
+      <div className="token-actions" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
         <button className="action-btn" onClick={() => nav.openTokenFlow('send', token.id)}>
           <IconSend />
           <span>Send</span>
@@ -117,6 +117,10 @@ export function TokenScreen({ token }: { token: TokenMeta }) {
         <button className="action-btn" onClick={() => nav.gotoSwap(token.id)}>
           <IconSwap />
           <span>Swap</span>
+        </button>
+        <button className="action-btn" onClick={() => nav.openTokenFlow('buy', token.id)}>
+          <IconBuy />
+          <span>Buy</span>
         </button>
       </div>
 
