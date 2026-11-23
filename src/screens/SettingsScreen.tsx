@@ -50,7 +50,7 @@ export function SettingsScreen() {
       toasts.success('Configuration imported')
       setImportText('')
     } else {
-      toasts.error('That JSON doesn't look like a Wisp configuration')
+      toasts.error('That JSON doesn’t look like a Wisp configuration')
     }
   }
 
