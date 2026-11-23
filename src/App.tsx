@@ -1,16 +1,16 @@
-/* Wisp Wallet — application shell: tabs, header, sheets, toasts, theming,
- * market polling and the simulator disclaimer. */
+/* Wisp Wallet — application shell: Phantom-style pill tabs, avatar header,
+ * search dock, sheets, toasts, theming, market polling and the disclaimer. */
 
-import { useCallback, useEffect, useMemo, useState, type ReactElement } from 'react'
-import { NavContext, type FlowState, type Nav, type Tab } from './nav'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { NavContext, useNav, type FlowState, type Nav, type Tab } from './nav'
 import { activeAccountOf, useWisp } from './lib/store'
 import { useMarket } from './lib/market'
-import { ToastHost, type ToastMsg } from './components/Sheet'
+import { ToastHost, Sheet, type ToastMsg } from './components/Sheet'
 import {
-  IconActivity, IconChevronDown, IconChevronLeft, IconExplore,
-  IconHome, IconSettings, IconSwap,
+  IconChevronDown, IconChevronLeft, IconEdit, IconSearch, IconPlus,
 } from './components/icons'
 import { Avatar } from './components/Avatar'
+import { SearchBox, TokenPicker } from './components/common'
 import { HomeScreen } from './screens/HomeScreen'
 import { TokenScreen } from './screens/TokenScreen'
 import { TradeScreen } from './screens/TradeScreen'
@@ -21,96 +21,147 @@ import { AccountSheet } from './components/AccountSheet'
 import { TokenEditorSheet } from './components/TokenEditorSheet'
 import { FlowSheets } from './components/FlowSheets'
 import { DisclaimerDialog } from './components/common'
+import { useTokens } from './lib/engine'
 
-const TAB_ITEMS: Array<{ id: Tab; label: string; Icon: (p: { width?: number; height?: number }) => ReactElement }> = [
-  { id: 'home', label: 'Home', Icon: IconHome },
-  { id: 'trade', label: 'Trade', Icon: IconSwap },
-  { id: 'explore', label: 'Explore', Icon: IconExplore },
-  { id: 'activity', label: 'Activity', Icon: IconActivity },
-  { id: 'settings', label: 'Settings', Icon: IconSettings },
+const PILLS: Array<{ id: Tab; label: string }> = [
+  { id: 'home', label: 'Home' },
+  { id: 'trade', label: 'Trade' },
+  { id: 'explore', label: 'Explore' },
 ]
 
-function TabBar({ tab, onSelect }: { tab: Tab; onSelect: (t: Tab) => void }) {
-  return (
-    <nav className="tabbar" aria-label="Primary">
-      {TAB_ITEMS.map(({ id, label, Icon }) => (
-        <button
-          key={id}
-          className={`tab ${tab === id ? 'selected' : ''}`}
-          onClick={() => onSelect(id)}
-          aria-current={tab === id ? 'page' : undefined}
-        >
-          <Icon />
-          <span>{label}</span>
-        </button>
-      ))}
-    </nav>
-  )
-}
-
-function Header({
-  nav,
-  title,
-  onBack,
-  showEdit,
-}: {
-  nav: Nav
-  title: string | null
-  onBack: () => void
-  showEdit: boolean
-}) {
+function Header({ nav }: { nav: Nav }) {
   const account = useWisp(s => activeAccountOf(s.data))
 
-  if (title) {
+  /* token detail — back header */
+  if (nav.tokenView) {
     return (
       <header className="wisp-header">
-        <button className="icon-btn" onClick={onBack} aria-label="Back">
+        <button className="icon-btn" onClick={nav.closeToken} aria-label="Back">
           <IconChevronLeft />
         </button>
         <div style={{ fontWeight: 800, fontSize: 16.5, flex: 1, textAlign: 'center', letterSpacing: '-0.01em' }}>
-          {title}
+          Token
         </div>
-        {showEdit ? (
-          <button
-            className="icon-btn"
-            onClick={() => nav.openFlow('edit-token', nav.tokenView ?? undefined)}
-            aria-label="Edit this token"
-          >
-            <IconSettings />
-          </button>
-        ) : (
-          <span style={{ width: 38 }} />
-        )}
-      </header>
-    )
-  }
-
-  if (nav.tab !== 'home') {
-    return (
-      <header className="wisp-header">
-        <div style={{ fontWeight: 800, fontSize: 20, letterSpacing: '-0.02em', padding: '4px 2px' }}>
-          {{ trade: 'Swap', explore: 'Explore', activity: 'Activity', settings: 'Settings' }[nav.tab]}
-        </div>
-        <div className="header-spacer" />
-        <button className="icon-btn" onClick={() => nav.openFlow('accounts')} aria-label="Switch account">
-          <Avatar account={account} size={32} />
+        <button
+          className="icon-btn"
+          onClick={() => nav.openFlow('edit-token', nav.tokenView ?? undefined)}
+          aria-label="Edit this token"
+        >
+          <IconEdit />
         </button>
       </header>
     )
   }
 
+  /* Phantom-style top bar: avatar + pill tabs + utility icons */
   return (
     <header className="wisp-header">
-      <button className="header-account" onClick={() => nav.openFlow('accounts')} aria-label="Switch account">
+      <button
+        className="header-account"
+        style={{ padding: 0 }}
+        onClick={() => nav.openFlow('accounts')}
+        aria-label="Switch account"
+      >
         <Avatar account={account} size={36} />
-        <span className="name">{account.name}</span>
-        <span className="chev"><IconChevronDown width={15} height={15} /></span>
       </button>
+
+      <nav className="pill-tabs" aria-label="Primary">
+        {PILLS.map(({ id, label }) => (
+          <button
+            key={id}
+            className={`pill-tab ${nav.tab === id ? 'selected' : ''}`}
+            onClick={() => nav.setTab(id)}
+            aria-current={nav.tab === id ? 'page' : undefined}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+
       <div className="header-spacer" />
-      <button className="icon-btn" onClick={() => nav.setTab('settings')} aria-label="Settings">
-        <IconSettings />
+
+      <button
+        className={`icon-btn ${nav.tab === 'activity' ? 'accent' : ''}`}
+        onClick={() => nav.setTab('activity')}
+        aria-label="Activity"
+      >
+        <ClockIcon />
+      </button>
+      <button
+        className={`icon-btn ${nav.tab === 'settings' ? 'accent' : ''}`}
+        onClick={() => nav.setTab('settings')}
+        aria-label="Settings"
+      >
+        <GearIcon />
       </button>
     </header>
+  )
+}
+
+function ClockIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  )
+}
+
+function GearIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3.2" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.35a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.65 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09c0 .68.4 1.3 1.03 1.56a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9c.26.63.88 1.03 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51.97Z" />
+    </svg>
+  )
+}
+
+/* bottom dock: search pill + purple plus (like the real app) */
+function Dock({ nav, onOpenSearch }: { nav: Nav; onOpenSearch: () => void }) {
+  if (nav.tokenView) return null
+  return (
+    <div className="dock">
+      <button className="dock-search" onClick={onOpenSearch} aria-label="Search tokens">
+        <IconSearch />
+        <span className="ph">Search Phantom</span>
+      </button>
+      <button
+        className="dock-plus"
+        onClick={() => nav.openFlow('edit-token')}
+        aria-label="Add a custom token"
+      >
+        <IconPlus />
+      </button>
+    </div>
+  )
+}
+
+function SearchSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const nav = useNav()
+  const tokens = useTokens()
+  const [search, setSearch] = useState('')
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    const list = q
+      ? tokens.filter(t => t.symbol.toLowerCase().includes(q) || t.name.toLowerCase().includes(q))
+      : tokens
+    return list.slice(0, 40)
+  }, [tokens, search])
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Search">
+      <SearchBox value={search} onChange={setSearch} placeholder="Search tokens" />
+      <TokenPicker
+        tokens={filtered}
+        selectedId={undefined}
+        onSelect={t => {
+          onClose()
+          setSearch('')
+          nav.openToken(t.id)
+        }}
+      />
+    </Sheet>
   )
 }
 
@@ -121,6 +172,7 @@ export default function App() {
   const [swapPreset, setSwapPreset] = useState<{ from?: string; to?: string } | null>(null)
   const [manage, setManage] = useState(false)
   const [toasts, setToasts] = useState<ToastMsg[]>([])
+  const [searchOpen, setSearchOpen] = useState(false)
 
   const data = useWisp(s => s.data)
   const settings = data.settings
@@ -130,7 +182,7 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = settings.theme
     const meta = document.querySelector('meta[name="theme-color"]')
-    if (meta) meta.setAttribute('content', settings.theme === 'light' ? '#f3f1fa' : '#0a0910')
+    if (meta) meta.setAttribute('content', settings.theme === 'light' ? '#ffffff' : '#0b0b0f')
   }, [settings.theme])
 
   /* live market polling — hydrates from cache, refreshes every 60s while visible */
@@ -190,12 +242,7 @@ export default function App() {
     <div className="wisp-stage">
       <div className="wisp-frame">
         <NavContext.Provider value={nav}>
-          <Header
-            nav={nav}
-            title={viewedToken?.symbol ?? null}
-            onBack={() => setTokenView(null)}
-            showEdit={Boolean(viewedToken)}
-          />
+          <Header nav={nav} />
           {tokenView && viewedToken ? (
             <TokenScreen key={viewedToken.id} token={viewedToken} />
           ) : tab === 'home' ? (
@@ -209,10 +256,9 @@ export default function App() {
           ) : (
             <SettingsScreen />
           )}
-          {viewedToken ? null : (
-            <TabBar tab={tab} onSelect={t => { setTab(t); setTokenView(null) }} />
-          )}
+          <Dock nav={nav} onOpenSearch={() => setSearchOpen(true)} />
 
+          <SearchSheet open={searchOpen} onClose={() => setSearchOpen(false)} />
           <AccountSheet open={flow?.kind === 'accounts'} onClose={closeFlow} activeId={account.id} />
           <TokenEditorSheet open={flow?.kind === 'edit-token'} tokenId={flow?.tokenId} onClose={closeFlow} />
           <FlowSheets flow={flow} onClose={closeFlow} />
