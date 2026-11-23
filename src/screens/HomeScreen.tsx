@@ -1,37 +1,26 @@
-/* Wisp Wallet — Home: balance hero, portfolio chart, quick actions,
- * token list with full manage mode (reorder / hide / edit / delete). */
+/* Wisp Wallet — Home: Phantom-style hero (wallet name, big balance,
+ * "+$x Today"), token cards and manage mode (reorder / hide / edit / delete). */
 
 import { useMemo, useState } from 'react'
 import { useNav } from '../nav'
 import { useWisp } from '../lib/store'
-import {
-  usePortfolio, usePortfolioRangeChange, usePortfolioSeries,
-} from '../lib/engine'
-import { useMarket } from '../lib/market'
+import { usePortfolio } from '../lib/engine'
 import { compactMoney, money, pct, qty as fmtQty, signedMoney } from '../lib/format'
-import { PriceChart } from '../components/PriceChart'
 import { TokenIcon } from '../components/TokenIcon'
 import { useAnimatedNumber } from '../components/AnimatedNumber'
-import { MarketChip, RangeTabs, SectionHead, SimBanner } from '../components/common'
+import { SectionHead } from '../components/common'
 import {
-  IconArrowDown, IconArrowUp, IconBuy, IconChevronRight, IconEdit, IconEye, IconEyeOff,
-  IconPlus, IconReceive, IconSend, IconSwap, IconTrash, IconAlert, IconSort,
+  IconArrowDown, IconArrowUp, IconChevronDown, IconEdit, IconEye, IconEyeOff,
+  IconPlus, IconSort, IconTrash, IconWallet,
 } from '../components/icons'
-import type { ChartRange } from '../lib/types'
 import type { PricedHolding } from '../lib/engine'
 
 export function HomeScreen() {
   const nav = useNav()
   const settings = useWisp(s => s.data.settings)
   const hiddenBalances = settings.hideBalances
-  const { total, change24hUsd, change24hPct, holdings } = usePortfolio()
-  const [range, setRange] = useState<ChartRange>('1D')
-  const series = usePortfolioSeries(range)
-  const rangeChange = usePortfolioRangeChange(range)
+  const { total, change24hUsd, holdings } = usePortfolio()
   const animatedTotal = useAnimatedNumber(total)
-
-  const marketStatus = useMarket(s => s.status)
-  const marketUpdated = useMarket(s => s.lastUpdated)
 
   const visible = useMemo(() => {
     const hidden = new Set(useWisp.getState().data.accounts.find(a => a.id === useWisp.getState().data.activeAccountId)?.hidden)
@@ -44,16 +33,16 @@ export function HomeScreen() {
     return holdings.filter(h => set.has(h.token.id))
   }, [holdings])
 
-  const up = change24hPct >= 0
+  const up = change24hUsd >= 0
 
   return (
     <div className="screen">
-      {/* ——— hero ——— */}
+      {/* ——— Phantom-style hero ——— */}
       <section className="home-hero">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button className="wallet-name-btn" onClick={() => nav.openFlow('wallet-name')}>
             {settings.walletName}
-            <IconChevronRight width={13} height={13} />
+            <IconChevronDown width={14} height={14} />
           </button>
           {settings.watermark ? <span className="chip custom" style={{ fontSize: 10, padding: '2px 8px', letterSpacing: '0.12em' }}>DEMO</span> : null}
         </div>
@@ -72,61 +61,34 @@ export function HomeScreen() {
           </button>
         </div>
         {!hiddenBalances ? (
-          <div className="change-row">
+          <div className="today-row">
             <span className={up ? 't-up' : 't-down'}>{signedMoney(change24hUsd, settings.currency)}</span>
-            <span className={`pct-pill ${up ? 'up' : 'down'}`}>
-              {up ? <IconArrowUp width={12} height={12} /> : <IconArrowDown width={12} height={12} />}
-              {pct(Math.abs(change24hPct))}
-            </span>
-            <span className="t-dim" style={{ fontSize: 12 }}>24h</span>
+            <span className="today-label">Today</span>
           </div>
         ) : null}
       </section>
 
-      {/* ——— portfolio chart ——— */}
-      <section className="home-chart" aria-label="Portfolio chart">
-        <PriceChart series={series} range={range} currency={settings.currency} />
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 10 }}>
-          <RangeTabs range={range} onChange={setRange} />
-        </div>
-        <div className="market-status-row">
-          <MarketChip status={marketStatus} lastUpdated={marketUpdated} />
-          <span className="status-note">
-            {range === '1D' ? 'Past 24h' : range === '1H' ? 'Past hour' : range === '1W' ? 'Past week' : range === '1M' ? 'Past month' : range === '1Y' ? 'Past year' : 'All time'}
-            {' · simulated history'}
-          </span>
-        </div>
-      </section>
-
-      {/* ——— quick actions ——— */}
-      <section className="home-actions action-grid" aria-label="Quick actions">
-        <button className="action-btn" onClick={() => nav.openTokenFlow('receive')}>
-          <IconReceive />
-          <span>Receive</span>
-        </button>
-        <button className="action-btn" onClick={() => nav.openTokenFlow('send')}>
-          <IconSend />
-          <span>Send</span>
-        </button>
-        <button className="action-btn" onClick={() => nav.gotoSwap(visible[0]?.token.id)}>
-          <IconSwap />
-          <span>Swap</span>
-        </button>
-        <button className="action-btn" onClick={() => nav.openTokenFlow('buy')}>
-          <IconBuy />
-          <span>Buy</span>
-        </button>
-      </section>
-
-      <div style={{ height: 14 }} />
-      <SimBanner />
+      {/* ——— cash-style row (like the real Cash card) ——— */}
+      <button
+        className="cash-row"
+        onClick={() => nav.gotoSwap(visible[0]?.token.id, 'usd-coin')}
+        aria-label="Swap into the demo stable"
+      >
+        <span className="cash-icon"><IconWallet /></span>
+        <span className="cash-name">Cash · USDC</span>
+        <span className="cash-value num">
+          {hiddenBalances
+            ? '•••'
+            : compactMoney(holdings.find(h => h.token.id === 'usd-coin')?.value ?? 0)}
+        </span>
+      </button>
 
       {/* ——— tokens ——— */}
       <SectionHead
         title={`Tokens`}
         action={
           <button
-            className={`link-btn ${nav.manage ? '' : ''}`}
+            className="link-btn"
             onClick={() => nav.setManage(!nav.manage)}
             aria-pressed={nav.manage}
           >
