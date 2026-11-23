@@ -23,11 +23,12 @@ export const IconHome = (p: P) => (
 )
 
 export const IconSwap = (p: P) => (
+  /* double vertical arrows — like the real Phantom swap flip button */
   <svg {...base(p)}>
-    <path d="M17 4l3 3-3 3" />
-    <path d="M20 7H8.5A4.5 4.5 0 0 0 4 11.5" />
-    <path d="M7 20l-3-3 3-3" />
-    <path d="M4 17h11.5a4.5 4.5 0 0 0 4.5-4.5" />
+    <path d="M8.5 19V5.5" />
+    <path d="m5 9 3.5-3.5L12 9" />
+    <path d="M15.5 5v13.5" />
+    <path d="m12 15 3.5 3.5L19 15" />
   </svg>
 )
 
@@ -207,10 +208,9 @@ export const IconSparkle = (p: P) => (
 )
 
 export const IconWallet = (p: P) => (
+  /* banknote — the real Phantom Cash row glyph (via orbitt-vault reference) */
   <svg {...base(p)}>
-    <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5Z" />
-    <path d="M4 9h16" />
-    <path d="M15 13.5h2" />
+    <path d="M3 6h18v12H3zM3 10a4 4 0 0 0 4-4m10 0a4 4 0 0 0 4 4M3 14a4 4 0 0 1 4 4m10 0a4 4 0 0 1 4-4M12 9v6m-2-4c0-2 4-2 4 0s-4 0-4 2 4 2 4 0" />
   </svg>
 )
 
@@ -296,3 +296,12 @@ export const CHAIN_GLYPHS: Record<string, (p: P) => ReactElement> = {
   Ethereum: ChainGlyphEth,
   Bitcoin: ChainGlyphBtc,
 }
+
+/* ——— added for the Phantom-style Explore screen ——— */
+
+export const IconArrowUpRight = (p: P) => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <path d="M7 17 17 7" />
+    <path d="M9 7h8v8" />
+  </svg>
+)
