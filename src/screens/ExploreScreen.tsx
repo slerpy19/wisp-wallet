@@ -1,5 +1,6 @@
-/* Wisp Wallet — Explore: searchable market list with live-ish prices,
- * trending / top movers tabs and a watchlist. All simulated balances. */
+/* Wisp Wallet — Explore: Phantom-style trending cards. Trending Tokens shows
+ * live-ish prices with a watchlist; Trending Sites is a labelled demo list.
+ * All simulated balances. */
 
 import { useMemo, useState } from 'react'
 import { useNav } from '../nav'
@@ -7,10 +8,17 @@ import { effectiveChange24h, effectivePrice, isLivePrice, useTokens } from '../l
 import { useMarket } from '../lib/market'
 import { compactMoney, pct, price as fmtPrice } from '../lib/format'
 import { TokenIcon } from '../components/TokenIcon'
-import { MarketChip, SearchBox, EmptyState } from '../components/common'
-import { IconStar, IconStarFilled, IconInfo } from '../components/icons'
+import { MarketChip, SectionHead, EmptyState } from '../components/common'
+import { IconStar, IconStarFilled, IconArrowUpRight, IconInfo } from '../components/icons'
 
 type ExploreTab = 'trending' | 'movers' | 'watchlist'
+
+/* demo site directory — decorative entries that match the real Explore tab */
+const TRENDING_SITES = [
+  { rank: 1, name: 'Jupiter', cat: 'DeFi', emoji: '🪐' },
+  { rank: 2, name: 'Raydium', cat: 'DeFi', emoji: '🟣' },
+  { rank: 3, name: 'pump.fun', cat: 'DeFi', emoji: '💊' },
+]
 
 export function ExploreScreen() {
   const nav = useNav()
@@ -18,7 +26,6 @@ export function ExploreScreen() {
   const marketStatus = useMarket(s => s.status)
   const marketUpdated = useMarket(s => s.lastUpdated)
   const [tab, setTab] = useState<ExploreTab>('trending')
-  const [search, setSearch] = useState('')
   const [watchlist, setWatchlist] = useState<Set<string>>(() => new Set(['solana', 'bitcoin', 'hyperliquid']))
 
   const rows = useMemo(() => {
@@ -28,12 +35,6 @@ export function ExploreScreen() {
       change: effectiveChange24h(t),
       live: isLivePrice(t),
     }))
-    const q = search.trim().toLowerCase()
-    if (q) {
-      return priced
-        .filter(r => r.token.symbol.toLowerCase().includes(q) || r.token.name.toLowerCase().includes(q))
-        .sort((a, b) => (b.token.marketCap ?? 0) - (a.token.marketCap ?? 0))
-    }
     switch (tab) {
       case 'trending':
         return priced
@@ -44,7 +45,7 @@ export function ExploreScreen() {
       case 'watchlist':
         return priced.filter(r => watchlist.has(r.token.id))
     }
-  }, [tokens, search, tab, watchlist])
+  }, [tokens, tab, watchlist])
 
   const toggleWatch = (id: string) => {
     setWatchlist(prev => {
@@ -55,27 +56,25 @@ export function ExploreScreen() {
     })
   }
 
+  const tabLabel = (t: ExploreTab) => (t === 'trending' ? 'Top Tokens' : t === 'movers' ? 'Movers' : 'Watchlist')
+
   return (
     <div className="screen">
-      <SearchBox value={search} onChange={setSearch} placeholder="Search the simulated market" />
+      <div className="explore-tabs" role="tablist">
+        {(['trending', 'movers', 'watchlist'] as const).map(t => (
+          <button
+            key={t}
+            role="tab"
+            aria-selected={tab === t}
+            className={tab === t ? 'selected' : ''}
+            onClick={() => setTab(t)}
+          >
+            {tabLabel(t)}
+          </button>
+        ))}
+      </div>
 
-      {!search ? (
-        <div className="explore-tabs" role="tablist">
-          {(['trending', 'movers', 'watchlist'] as const).map(t => (
-            <button
-              key={t}
-              role="tab"
-              aria-selected={tab === t}
-              className={tab === t ? 'selected' : ''}
-              onClick={() => setTab(t)}
-            >
-              {t === 'trending' ? 'Top tokens' : t === 'movers' ? 'Movers' : 'Watchlist'}
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px 8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px 4px' }}>
         <MarketChip status={marketStatus} lastUpdated={marketUpdated} compact />
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-3)' }}>
           <IconInfo width={12} height={12} />
@@ -83,30 +82,29 @@ export function ExploreScreen() {
         </span>
       </div>
 
-      <div className="asset-list" style={{ flexDirection: 'column', gap: 2 }}>
+      <SectionHead title="Trending Tokens" />
+      <div className="trend-card">
         {rows.length === 0 ? (
           <EmptyState
             title={tab === 'watchlist' ? 'Your watchlist is empty' : 'No matches'}
             body={tab === 'watchlist'
               ? 'Tap the star next to any token to keep an eye on its simulated price.'
-              : 'Try a different search term — the simulated market covers the built-in catalog.'}
+              : 'Try a different tab — the simulated market covers the built-in catalog.'}
             icon={<IconStar />}
           />
         ) : rows.map((r, i) => (
-          <div key={r.token.id} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            {!search ? (
-              <span className="trend-row" style={{ width: 30, padding: 0, justifyContent: 'center' }}>
-                <span className="t-rank">{i + 1}</span>
-              </span>
-            ) : null}
+          <div key={r.token.id} style={{ display: 'flex', alignItems: 'center' }}>
+            <span className="trend-row" style={{ width: 34, padding: 0, justifyContent: 'center', flex: 'none' }}>
+              <span className="t-rank">{i + 1}</span>
+            </span>
             <button className="trend-row" style={{ flex: 1 }} onClick={() => nav.openToken(r.token.id)}>
               <TokenIcon token={r.token} size={42} showChain />
               <span className="t-name">
                 <span className="n">
-                  {r.token.name}
+                  {r.token.symbol}
                   {r.token.custom ? <span className="chip custom" style={{ fontSize: 10, padding: '1px 7px' }}>Custom</span> : null}
                 </span>
-                <span className="s">{r.token.symbol} · {compactMoney(r.token.marketCap ?? r.price * 1e6)}</span>
+                <span className="s">{compactMoney(r.token.marketCap ?? r.price * 1e6)}</span>
               </span>
               <span className="t-price">
                 <span className="p num">{fmtPrice(r.price)}</span>
@@ -115,6 +113,7 @@ export function ExploreScreen() {
             </button>
             <button
               className={`watch-btn ${watchlist.has(r.token.id) ? 'on' : ''}`}
+              style={{ margin: '0 10px 0 4px' }}
               onClick={() => toggleWatch(r.token.id)}
               aria-label={watchlist.has(r.token.id) ? `Remove ${r.token.symbol} from watchlist` : `Add ${r.token.symbol} to watchlist`}
               aria-pressed={watchlist.has(r.token.id)}
@@ -122,6 +121,29 @@ export function ExploreScreen() {
               {watchlist.has(r.token.id) ? <IconStarFilled /> : <IconStar />}
             </button>
           </div>
+        ))}
+      </div>
+
+      <SectionHead title="Trending Sites" />
+      <div className="trend-card">
+        {TRENDING_SITES.map(site => (
+          <button
+            key={site.rank}
+            className="site-row"
+            onClick={() => window.dispatchEvent(new CustomEvent('wisp-toast', {
+              detail: { kind: 'info', message: `${site.name} is a demo entry — no real links in the simulator` },
+            }))}
+          >
+            <span className="site-ico">
+              {site.emoji}
+              <span className="site-rank">{site.rank}</span>
+            </span>
+            <span className="site-name">
+              <span className="n">{site.name}</span>
+              <span className="s">{site.cat}</span>
+            </span>
+            <span className="site-open"><IconArrowUpRight /></span>
+          </button>
         ))}
       </div>
 
